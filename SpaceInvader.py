@@ -89,11 +89,12 @@ def collide(object1, object2):
     x_offset = object2.x - object1.x
     y_offset = object2.y - object1.y
     return object1.mask.overlap(object2.mask, (x_offset, y_offset)) != None
+
 def main():
     run_game = True
     frames_per_second = 60
     # initializing game level and score variables
-    level = "High"
+    level = "Easy"
     score = 0
     # Setting font family to 'comicsans' and font size to 50px
     label_font = py.font.SysFont("comicsans",35)
@@ -112,9 +113,10 @@ def main():
         asteroids_wave_size = 40
         asteroid_move_value = 3
 
-    # for setting the pixels when arrow keys are pressed to move the spaceship
-    spaceship_move_value = 20
+    # spaceship moving speed
+    spaceship_move_value = 10
 
+    # SpaceShip object with 300 x value and 650 y value
     spaceship = SpcaeShip(300, 650)
 
     time_clock = py.time.Clock()
@@ -124,6 +126,7 @@ def main():
 
     # For each iteration of while loop we want to refresh the window
     def redraw_window():
+        # set background image
         window.blit(BG, (0, 0))
 
         orange_color = (252, 186, 3)
@@ -158,24 +161,44 @@ def main():
         # run the game at 60 frames per second
         time_clock.tick(frames_per_second)
 
-        #call redraw_window
+        #call redraw_window function
         redraw_window()
 
+        # After collision end the game after 3s
         if hit_fire_asteroid:
             timer += 1
+            # exit the game if timer equals 3
             if timer > frames_per_second * 3:
                 run_game = False
 
+        # checks asteroids array lengtht
         if len(asteroids) == 0:
+            # loop upto the asteroids_wave_size
             for i in range(asteroids_wave_size):
-                asteroid = Asteroids(random.randrange(50, width-100), random.randrange(-2500, -100), random.choice([FIRE_ROCK, WHITE_ROCK]))
+                # x value of asteroid
+                x_value = random.randrange(50, width-100)
+
+                # y value of asteroid
+                # it is negative because asteroid is to created off the screen
+                y_value = random.randrange(-2500, -100)
+
+                # random asteroid type
+                random_asteroid = random.choice([FIRE_ROCK, WHITE_ROCK])
+
+                # Asteroids object created
+                asteroid = Asteroids(x_value, y_value, random_asteroid)
+
+                # add asteroid to the asteroids array
                 asteroids.append(asteroid)
+
+            # Another wave of asteroids is not to be occur
             asteroids_wave_size = 0
 
-        # Loop through the 60 frames per second & check for events
+        # Loop through events that occurs
         for event in py.event.get():
+            # Quit the game
             if event.type == py.QUIT:
-                run_game = False
+                quit()
 
         # move the spaceship when arrow keys are pressed
         key = py.key.get_pressed()
@@ -212,4 +235,33 @@ def main():
                 score += 1 # increase score by 1
                 asteroids.remove(asteroid) # hide that asteroid
 
-main()
+
+# Main Menu
+def menu():
+    # Font to be used for main menu
+    menu_font = py.font.SysFont("comicsans", 50)
+    # variable to handle game quit or run
+    run_game = True
+    while run_game:
+        # rgb value of orange
+        orange_color = (252, 186, 3)
+        # Label to be shown before game start and after game ends
+        menu_label = menu_font.render("Press Mouse button to begin...", 1, orange_color)
+        # place label on the window
+        x_value = width/2 - menu_label.get_width()/2
+        y_value = 350
+        window.blit(menu_label, (x_value, y_value))
+
+        py.display.update()
+
+        # check for events and loop through them
+        for event in py.event.get():
+            # Quit game
+            if event.type == py.QUIT:
+                run_game = False
+            # If Enter key pressed start game
+            if event.type == py.MOUSEBUTTONDOWN:
+                main()
+    py.quit()
+
+menu()
