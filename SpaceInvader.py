@@ -1,6 +1,6 @@
 # Required Libraries imported
 import pygame as py
-import time
+from pygame import mixer
 import random
 
 # initialize pygame fonts
@@ -11,6 +11,11 @@ width = 750
 height = 750
 window = py.display.set_mode((width, height))
 py.display.set_caption("SPACE INVADERS")
+
+# Load background music
+mixer.init()
+mixer.music.load("bg_sound.mp3")
+mixer.music.set_volume(0.7)
 
 # Load Player SpaceShip
 SPACESHIP = py.image.load("spaceship.png")
@@ -90,12 +95,15 @@ def collide(object1, object2):
     y_offset = object2.y - object1.y
     return object1.mask.overlap(object2.mask, (x_offset, y_offset)) != None
 
-def main():
+def main(level):
+    # start background music
+    mixer.music.play(-1)
+
+    # initializing variables
     run_game = True
     frames_per_second = 60
-    # initializing game level and score variables
-    level = "Easy"
     score = 0
+
     # Setting font family to 'comicsans' and font size to 50px
     label_font = py.font.SysFont("comicsans",35)
     popup_font = py.font.SysFont("comicsans", 60)
@@ -104,13 +112,13 @@ def main():
     asteroids = []
 
     if level == "Easy":
-        asteroids_wave_size = 40
+        asteroids_wave_size = 50
         asteroid_move_value = 1
     if level == "Medium":
-        asteroids_wave_size = 40
+        asteroids_wave_size = 70
         asteroid_move_value = 2
-    if level == "High":
-        asteroids_wave_size = 40
+    if level == "Hard":
+        asteroids_wave_size = 90
         asteroid_move_value = 3
 
     # spaceship moving speed
@@ -123,6 +131,7 @@ def main():
 
     hit_fire_asteroid = False
     timer = 0   # timer to quit game after hit
+    win = False
 
     # For each iteration of while loop we want to refresh the window
     def redraw_window():
@@ -138,8 +147,9 @@ def main():
         # calculate left padding of score label
         score_left_padding = width - score_label.get_width() - 10
 
-        # position level and score
+        # position level
         window.blit(level_label, (10, 10))
+        # position score
         window.blit(score_label, (score_left_padding, 10))
 
         # display asteroids on window
@@ -149,10 +159,18 @@ def main():
         # display spaceship on game window
         spaceship.draw(window)
 
+        # if spaceship hit fire_asteroid
         if hit_fire_asteroid:
-            hit_label = popup_font.render("You Lost!", 1, (255,255,255))
+            # display
+            hit_label = popup_font.render("You Lose: {}".format(score), 1, orange_color)
             window.blit(hit_label, (width/2 - hit_label.get_width()/2, 350))
-            end_time = time.process_time()
+
+        # winning Score
+        if win:
+            # display
+            win_label = popup_font.render("You Win: {}".format(score), 1, orange_color)
+            window.blit(win_label, (width / 2 - win_label.get_width() / 2, 350))
+
 
         py.display.update()
 
@@ -165,11 +183,11 @@ def main():
         redraw_window()
 
         # After collision end the game after 3s
-        if hit_fire_asteroid:
+        if hit_fire_asteroid or win:
             timer += 1
             # exit the game if timer equals 3
-            if timer > frames_per_second * 3:
-                run_game = False
+            if timer > frames_per_second * 5:
+                quit()
 
         # checks asteroids array lengtht
         if len(asteroids) == 0:
@@ -180,8 +198,12 @@ def main():
 
                 # y value of asteroid
                 # it is negative because asteroid is to created off the screen
-                y_value = random.randrange(-2500, -100)
-
+                if level == "Easy":
+                    y_value = random.randrange(-2500, -100)
+                if level == "Medium":
+                    y_value = random.randrange(-3500, -100)
+                if level == "Hard":
+                    y_value = random.randrange(-4500, -100)
                 # random asteroid type
                 random_asteroid = random.choice([FIRE_ROCK, WHITE_ROCK])
 
@@ -191,8 +213,7 @@ def main():
                 # add asteroid to the asteroids array
                 asteroids.append(asteroid)
 
-            # Another wave of asteroids is not to be occur
-            asteroids_wave_size = 0
+
 
         # Loop through events that occurs
         for event in py.event.get():
@@ -200,11 +221,12 @@ def main():
             if event.type == py.QUIT:
                 quit()
 
+
         # move the spaceship when arrow keys are pressed
         key = py.key.get_pressed()
 
         # If hit_fire_asteroid is true then player shouldn't be able to move spaceship
-        if not hit_fire_asteroid:
+        if (not hit_fire_asteroid) and (not win):
             # if 'a' is pressed move left
             if(key[py.K_a]) and (spaceship.x - spaceship_move_value > 0):
                 spaceship.x -= spaceship_move_value
@@ -218,39 +240,60 @@ def main():
             if (key[py.K_s]) and (spaceship.y + spaceship_move_value + spaceship.get_height() + 15 < height):  # down
                 spaceship.y += spaceship_move_value
 
+
+
         # move asteroids downward
         for asteroid in asteroids[:]:
-
             # pause movement of asteroids if asteroid spaceship hit asteroid
-            if not hit_fire_asteroid:
+            if (not hit_fire_asteroid) and (not win):
                 # move asteroid down
                 asteroid.move(asteroid_move_value)
 
             # spaceship hits fire_asteroid
             if asteroid.collision(spaceship) and (asteroid.get_type() is FIRE_ROCK):
+                # play collision sound
+                collision_sound = mixer.Sound("crash.wav")
+                collision_sound.play()
+
                 hit_fire_asteroid = True
+                asteroids.remove(asteroid)
 
             # spaceship hits white_asteroid
             if asteroid.collision(spaceship) and (asteroid.get_type() is WHITE_ROCK):
-                score += 1 # increase score by 1
-                asteroids.remove(asteroid) # hide that asteroid
+                # play eat sound
+                eat_sound = mixer.Sound("eat.wav")
+                eat_sound.play()
 
+                score += 5 # increase score by 5
+                asteroids.remove(asteroid) # hide that asteroid
+                # set win to True score exceeds winning score 50
+                if(score >= 50):
+                    win = True
 
 # Main Menu
 def menu():
     # Font to be used for main menu
     menu_font = py.font.SysFont("comicsans", 50)
+    level_font = py.font.SysFont("comicsans", 40)
     # variable to handle game quit or run
     run_game = True
     while run_game:
         # rgb value of orange
         orange_color = (252, 186, 3)
+        white_color = (255, 255, 255)
         # Label to be shown before game start and after game ends
-        menu_label = menu_font.render("Press Mouse button to begin...", 1, orange_color)
+        menu_label = menu_font.render("Main Menu", 1, orange_color)
+        easy_level = level_font.render("Press 1 for EASY Level", 1, white_color)
+        medium_level = level_font.render("Press 2 for MEDIUM Level", 1, white_color)
+        hard_level = level_font.render("Press 3 for HARD Level", 1, white_color)
+
         # place label on the window
-        x_value = width/2 - menu_label.get_width()/2
-        y_value = 350
-        window.blit(menu_label, (x_value, y_value))
+        x_value = width/2 - menu_label.get_width()/2 # center position
+        y_value = 150
+        window.blit(menu_label, (x_value, y_value)) # position Menu Label
+        window.blit(easy_level, (x_value - 70, y_value + 100)) # position Easy Label
+        window.blit(medium_level, (x_value - 70, y_value + 150)) # position Medium Label
+        window.blit(hard_level, (x_value - 70, y_value + 200)) # position Hard Label
 
         py.display.update()
 
@@ -259,9 +302,14 @@ def menu():
             # Quit game
             if event.type == py.QUIT:
                 run_game = False
-            # If Enter key pressed start game
-            if event.type == py.MOUSEBUTTONDOWN:
-                main()
+        keys = py.key.get_pressed()
+        if keys[py.K_1]:
+            main("Easy")
+        if keys[py.K_2]:
+            main("Medium")
+        if keys[py.K_3]:
+            main("Hard")
+
     py.quit()
 
 menu()
